@@ -9,6 +9,8 @@
 -module(mc_utils).
 -author("tihon").
 
+-include_lib("kernel/include/inet.hrl").
+
 -define(ALLOWED_CHARS, {65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89,
   90, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115,
   116, 117, 118, 119, 120, 121, 122, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57}).
@@ -28,6 +30,10 @@
   to_binary/1,
   use_legacy_protocol/1,
   get_connection_pid/1]).
+
+-export([
+  get_srv_seeds/1
+]).
 
 get_value(Key, List) -> get_value(Key, List, undefined).
 
@@ -110,3 +116,34 @@ unwrap(Term) when is_function(Term, 0) ->
     unwrap(Term());
 unwrap(Term) ->
     Term.
+
+%% Returns a list of {Host, port} seeds for a given host. Performs
+%% a DNS lookup of the SRV as described in the MongoDB reference manual
+-spec get_srv_seeds(string() | binary()) -> {ok, [{SVR :: string(), SVR :: inet:port_number()}]} |
+{error, srv_lookup_failed | srv_insecure_endpoints}.
+get_srv_seeds(SVR) when is_binary(SVR) ->
+  get_srv_seeds(unicode:characters_to_list(SVR));
+get_srv_seeds(Host) ->
+  Srv = "_mongodb._tcp." ++ Host,
+  case inet_res:getbyname(Srv, srv) of
+    {ok, #hostent{h_addr_list = Endpoints}} ->
+      Seeds = [{H, P} || {_, _, P, H} <- Endpoints],
+      SeedHosts = [H ++ ":" ++  integer_to_list(P) || {_, _, P, H} <- Endpoints],
+      case lists:all(fun ({H, _P}) ->
+        valid_endpoint(Host, H)
+                     end,
+        Seeds)
+      of
+        true ->
+          {ok, SeedHosts};
+        false ->
+          {error, srv_insecure_endpoints}
+      end;
+    {error, _Reason} ->
+      {error, srv_lookup_failed}
+  end.
+
+valid_endpoint(Host, Srv) ->
+  [_ | HostBaseDomain] = string:split(Host, "."),
+  [_ | SrvBaseDomain] = string:split(Srv, "."),
+  HostBaseDomain == SrvBaseDomain.
