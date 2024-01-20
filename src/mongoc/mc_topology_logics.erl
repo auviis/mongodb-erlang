@@ -142,7 +142,16 @@ validate_server_and_config(ConnectArgs, TopologyType, TopologySetName) ->
       mc_worker_api:disconnect(Conn),
       ServerType = server_type(MaybeMaster),
       ServerSetName = maps:get(<<"setName">>, MaybeMaster, undefined),
-      validate_server_and_config(TopologyType, TopologySetName, ServerType, ServerSetName);
+      case TopologySetName of
+        unknown ->
+           case validate_server_and_config(TopologyType, ServerSetName, ServerType, ServerSetName) of
+             ok -> {ok,ServerSetName};
+             Error -> Error
+           end;
+        _       ->
+          validate_server_and_config(TopologyType, TopologySetName, ServerType, ServerSetName)
+      end;
+%%      validate_server_and_config(TopologyType, TopologySetName, ServerType, ServerSetName);
     {error, Reason} ->
       {connect_failed, Reason}
   end.
