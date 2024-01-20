@@ -68,7 +68,9 @@ init([SeedsList, TopologyOptions, WorkerOptions]) ->
   case mc_topology_logics:validate_server_and_config(ConnectArgs, Type, SetName) of
     ok ->
       {ok, State};
-
+    {ok,NewSetName} ->
+      io:format("discovery setName:~p~n",[NewSetName]),
+      {ok, State#topology_state{setName = NewSetName}};
     Error ->
       {stop, Error}
   end.
