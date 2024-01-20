@@ -298,6 +298,11 @@ If you want to connect to a replica set _ReplicaSetName_ use this format
  of Seeds value:
 
     { rs, <<"ReplicaSetName">>, [ "hostname1:port1", "hostname2:port2"] }
+    
+If you want to connect to a replica and want auto discovery the SetName, use this format
+ of Seeds value:
+ 
+    { rs, unknown, [ "hostname1:port1", "hostname2:port2"] }
 
 To connect to a sharded cluster of mongos:
 
